@@ -5,8 +5,8 @@ import (
 	"net"
 	"syscall"
 
-	sockaddr "github.com/jbenet/go-sockaddr"
-	sockaddrnet "github.com/jbenet/go-sockaddr/net"
+	sockaddr "github.com/RealImage/go-sockaddr"
+	sockaddrnet "github.com/RealImage/go-sockaddr/net"
 )
 
 type UDTAddr struct {
