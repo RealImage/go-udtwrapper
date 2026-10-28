@@ -3,6 +3,7 @@ package udt
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"syscall"
 	"time"
@@ -24,6 +25,15 @@ var errClosing = errors.New("file descriptor closing")
 var (
 	// UDP_RCVBUF_SIZE is the default UDP_RCVBUF size.
 	UDP_RCVBUF_SIZE = uint32(20971520) // 20MB
+
+	// UDT_FC_PACKETS is the UDT_FC flow window in packets
+	UDT_FC_PACKETS = 65536
+
+	// UDT_RCVBUF_BYTES is the UDT_RCVBUF size in bytes (about 45k packets)
+	UDT_RCVBUF_BYTES = 64 * 1024 * 1024
+
+	// UDP_RCVBUF_BYTES is the UDP_RCVBUF size in bytes
+	UDP_RCVBUF_BYTES = 64 * 1024 * 1024
 
 	// UDT_SNDTIMEO is the udt_send() timeout in milliseconds
 	// note this doesnt change the interface, we use it as a poor polling
@@ -222,7 +232,19 @@ func socket(addrfamily int) (sock C.UDTSOCKET, reterr error) {
 		return INVALID_SOCK, fmt.Errorf("invalid socket: %s", lastError())
 	}
 
+	// UDT_FC first, it caps UDT_RCVBUF
+	setSockOpt(sock, C.UDT_FC, UDT_FC_PACKETS, "UDT_FC")
+	setSockOpt(sock, C.UDT_RCVBUF, UDT_RCVBUF_BYTES, "UDT_RCVBUF")
+	setSockOpt(sock, C.UDP_RCVBUF, UDP_RCVBUF_BYTES, "UDP_RCVBUF")
+
 	return sock, nil
+}
+
+func setSockOpt(sock C.UDTSOCKET, opt C.SOCKOPT, val int, name string) {
+	v := C.int(val)
+	if C.udt_setsockopt(sock, 0, opt, unsafe.Pointer(&v), C.int(unsafe.Sizeof(v))) == C.ERROR {
+		log.Printf("udt: unable to set %s to %d: %s", name, val, lastError())
+	}
 }
 
 func closeSocket(sock C.UDTSOCKET) error {
